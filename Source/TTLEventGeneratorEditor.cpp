@@ -26,11 +26,70 @@ TTLEventGeneratorEditor::TTLEventGeneratorEditor(TTLEventGenerator* parentNode, 
 
 	processor = parentNode;
 
+	setDesiredWidth(250);
+
+	manualTrigger = new UtilityButton("Trigger", Font("Default", 20, Font::plain));
+    manualTrigger->addListener(this);
+	manualTrigger->setBounds(130,35,75,25);
+    addAndMakeVisible(manualTrigger);
+
+	eventFrequency = new Slider();
+	eventFrequency->setRange(50, 5000, 50);
+	eventFrequency->setValue(50);
+	eventFrequency->setTextValueSuffix (" ms");
+	eventFrequency->addListener (this);
+	eventFrequency->setChangeNotificationOnlyOnRelease(true);
+	eventFrequency->setBounds(25, 95, 200, 25);
+	addAndMakeVisible (eventFrequency);
+
+	frequencyLabel = new Label("FrequencyLabel", "Frequency");
+	frequencyLabel->attachToComponent(eventFrequency, false);
+	addAndMakeVisible(frequencyLabel);
+
+	outputBitSelector = new ComboBox();
+
+	for (int bit = 1; bit <= 8; bit++)
+		outputBitSelector->addItem(String(bit), bit);
+
+	outputBitSelector->setSelectedId(1);
+	outputBitSelector->setBounds(50,35,50,25);
+	outputBitSelector->setTooltip("Output event channel");
+	outputBitSelector->addListener(this);
+	addAndMakeVisible(outputBitSelector);
+
+	outputLabel = new Label("Bit Label", "OUT");
+	outputLabel->attachToComponent(outputBitSelector, true);
+	addAndMakeVisible(outputLabel);
+
 }
 
 TTLEventGeneratorEditor::~TTLEventGeneratorEditor()
 {
 
+}
+
+void TTLEventGeneratorEditor::buttonEvent(Button* button)
+{
+	if(button == manualTrigger)
+	{
+		processor->setParameter(0, 0.0f); // the second input (value) is arbitrary in this case
+	}
+}
+
+void TTLEventGeneratorEditor::sliderEvent(Slider* slider)
+{
+	if(slider == eventFrequency)
+	{
+		processor->setParameter(1, slider->getValue());
+	}
+}
+
+void TTLEventGeneratorEditor::comboBoxChanged(ComboBox* comboBox)
+{
+	if(comboBox == outputBitSelector)
+	{
+		processor->setParameter(2, comboBox->getSelectedId() - 1); // subtract 1 to convert to zero-based indexing
+	}
 }
 
 void TTLEventGeneratorEditor::updateSettings()

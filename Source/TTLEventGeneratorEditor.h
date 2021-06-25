@@ -23,7 +23,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 class TTLEventGenerator;
 
-class TTLEventGeneratorEditor : public GenericEditor
+class TTLEventGeneratorEditor : public GenericEditor,
+								public ComboBox::Listener
 {
 public:
 
@@ -32,9 +33,23 @@ public:
 
 	void updateSettings() override;
 
+	void buttonEvent(Button* button) override;
+
+	void sliderEvent(Slider* slider) override;
+
+    void comboBoxChanged(ComboBox* comboBox) override;
+
 private:
 
 	TTLEventGenerator* processor;
+
+	ScopedPointer<UtilityButton> manualTrigger;
+
+	ScopedPointer<Slider> eventFrequency;
+	ScopedPointer<Label> frequencyLabel;
+
+	ScopedPointer<ComboBox> outputBitSelector;
+	ScopedPointer<Label> outputLabel;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TTLEventGeneratorEditor);
 

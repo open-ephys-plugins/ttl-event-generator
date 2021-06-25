@@ -1,15 +1,46 @@
+/*
+------------------------------------------------------------------
+This file is part of the Open Ephys GUI
+Copyright (C) 2021 Open Ephys
+------------------------------------------------------------------
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "TTLEventGenerator.h"
+#include "TTLEventGeneratorEditor.h"
 
 //Change all names for the relevant ones, including "Processor Name"
 TTLEventGenerator::TTLEventGenerator() : GenericProcessor("TTL Event Generator")
 {
+	setProcessorType (PROCESSOR_TYPE_FILTER);
 
+   shouldTriggerEvent = false;
+   eventIntervalMs = 50.0f;
+   outputBit = 0;
 }
+
 
 TTLEventGenerator::~TTLEventGenerator()
 {
 
 }
+
+
+AudioProcessorEditor* TTLEventGenerator::createEditor()
+{
+	editor = new TTLEventGeneratorEditor(this, true);
+    return editor;
+}
+
 
 void TTLEventGenerator::createEventChannels()
 {
@@ -39,6 +70,7 @@ void TTLEventGenerator::createEventChannels()
 
 }
 
+
 bool TTLEventGenerator::enable()
 {
    counter = 0;
@@ -47,26 +79,59 @@ bool TTLEventGenerator::enable()
    return isEnabled;
 }
 
+
+void TTLEventGenerator::setParameter(int ID, float value)
+{
+   if (ID == 0)
+   {
+      shouldTriggerEvent = true;
+   } else if (ID == 1)
+   {
+      eventIntervalMs = value;
+   } else if (ID == 2)
+   {
+      outputBit = int(value);
+   }
+}
+
+
 void TTLEventGenerator::process(AudioSampleBuffer& buffer)
 {
 	int totalSamples = getNumSamples(0);
+
+   int eventIntervalInSamples = (int) sampleRate * eventIntervalMs / 2 / 1000;
 
    for (int i = 0; i < totalSamples; i++)
    {
       counter++;
 
-      if (counter == sampleRate)
+      if (shouldTriggerEvent)
+      {
+         uint8 ttlData = true << outputBit;
+
+         TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
+                                                         getTimestamp(0) + i,
+                                                         &ttlData,
+                                                         sizeof(uint8),
+                                                         outputBit);
+
+         addEvent(eventChannel, event, i);
+
+         shouldTriggerEvent = false;
+      }
+      
+      if (counter == eventIntervalInSamples)
       {
 
          state = !state;
 
-         uint8 ttlData = state << 0;
+         uint8 ttlData = state << outputBit;
 
          TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
                                                       getTimestamp(0) + i,
                                                       &ttlData,
                                                       sizeof(uint8),
-                                                      0);
+                                                      outputBit);
 
          addEvent(eventChannel, event, i);
 

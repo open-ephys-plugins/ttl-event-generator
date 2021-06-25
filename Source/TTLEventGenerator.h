@@ -14,10 +14,10 @@ public:
 	~TTLEventGenerator();
 
 	/** Indicates if the processor has a custom editor. Defaults to false */
-	//bool hasEditor() const { return true; }
+	bool hasEditor() const { return true; }
 
 	/** If the processor has a custom editor, this method must be defined to instantiate it. */
-	//AudioProcessorEditor* createEditor() override;
+	AudioProcessorEditor* createEditor() override;
 
 	/** Optional method that informs the GUI if the processor is ready to function. If false acquisition cannot start. Defaults to true */
 	//bool isReady();
@@ -38,13 +38,6 @@ public:
 
 	bool enable() override;
 
-	EventChannel* eventChannel; // pointer to our event channel
-
-	int sampleRate; // holds the sample rate for incoming data
-
-	int counter; // counts the total number of incoming samples
-	bool state; // holds the channel state (on or off)
-
 	/** Handles events received by the processor
 
 	Called automatically for each received event whenever checkForEvents() is called from process()		
@@ -60,7 +53,7 @@ public:
 	/** The method that standard controls on the editor will call.
 	It is recommended that any variables used by the "process" function
 	are modified only through this method while data acquisition is active. */
-	//void setParameter(int parameterIndex, float newValue) override;
+	void setParameter(int parameterIndex, float newValue) override;
 
 	/** Saving custom settings to XML. */
 	//void saveCustomParametersToXml(XmlElement* parentElement) override;
@@ -77,6 +70,18 @@ public:
 
 	*/
 	//void updateSettings() override;
+
+private:
+	EventChannel* eventChannel; // pointer to our event channel
+
+	int sampleRate; // holds the sample rate for incoming data
+
+	int counter; // counts the total number of incoming samples
+	bool state; // holds the channel state (on or off)
+
+	bool shouldTriggerEvent;
+	float eventIntervalMs;
+	int outputBit;
 
 };
 
