@@ -80,6 +80,9 @@ private:
 	bool state; // holds the channel state (on or off)
 
 	bool shouldTriggerEvent;
+	bool eventWasTriggered;
+   	int triggeredEventCounter;
+	   
 	float eventIntervalMs;
 	int outputBit;
 

@@ -24,6 +24,9 @@ TTLEventGenerator::TTLEventGenerator() : GenericProcessor("TTL Event Generator")
 	setProcessorType (PROCESSOR_TYPE_FILTER);
 
    shouldTriggerEvent = false;
+   eventWasTriggered = false;
+   triggeredEventCounter = 0;
+
    eventIntervalMs = 50.0f;
    outputBit = 0;
 }
@@ -101,23 +104,46 @@ void TTLEventGenerator::process(AudioSampleBuffer& buffer)
 
    int eventIntervalInSamples = (int) sampleRate * eventIntervalMs / 2 / 1000;
 
+   if (shouldTriggerEvent)
+   {
+
+      // add an event at the first sample.
+      uint8 ttlData = true << outputBit;
+
+      TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
+                                                   getTimestamp(0),
+                                                   &ttlData,
+                                                   sizeof(uint8),
+                                                   outputBit);
+
+      addEvent(eventChannel, event, 0);
+
+      shouldTriggerEvent = false;
+      eventWasTriggered = true;
+      triggeredEventCounter = 0;
+   }
+
    for (int i = 0; i < totalSamples; i++)
    {
       counter++;
 
-      if (shouldTriggerEvent)
+      if (eventWasTriggered)
+         triggeredEventCounter++;
+
+      if (triggeredEventCounter == eventIntervalInSamples)
       {
-         uint8 ttlData = true << outputBit;
+         uint8 ttlData = 0;
 
          TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
-                                                         getTimestamp(0) + i,
-                                                         &ttlData,
-                                                         sizeof(uint8),
-                                                         outputBit);
+                                                      getTimestamp(0) + i,
+                                                      &ttlData,
+                                                      sizeof(uint8),
+                                                      outputBit);
 
          addEvent(eventChannel, event, i);
 
-         shouldTriggerEvent = false;
+         eventWasTriggered = false;
+         triggeredEventCounter = 0;
       }
       
       if (counter == eventIntervalInSamples)
@@ -138,6 +164,9 @@ void TTLEventGenerator::process(AudioSampleBuffer& buffer)
          counter = 0;
 
       }
+
+      if (counter > eventIntervalInSamples)
+         counter = 0;
    }
 	 
 }
