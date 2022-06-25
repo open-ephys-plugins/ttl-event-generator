@@ -2,7 +2,7 @@
 ------------------------------------------------------------------
 
 This file is part of the Open Ephys GUI
-Copyright (C) 2016 Open Ephys
+Copyright (C) 2022 Open Ephys
 
 ------------------------------------------------------------------
 
@@ -21,10 +21,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <PluginInfo.h>
+
 #include "TTLEventGenerator.h"
 #include <string>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <Windows.h>
 #define EXPORT __declspec(dllexport)
 #else
@@ -32,7 +33,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 using namespace Plugin;
-//Number of plugins defined on the library. Can be of different types (Processors, RecordEngines, etc...)
+
 #define NUM_PLUGINS 1
 
 extern "C" EXPORT void getLibInfo(Plugin::LibraryInfo* info)
@@ -41,12 +42,8 @@ extern "C" EXPORT void getLibInfo(Plugin::LibraryInfo* info)
 	Should not be changed to ensure it is always equal to the one used in the latest codebase.
 	The GUI refueses to load plugins with mismatched API versions */
 	info->apiVersion = PLUGIN_API_VER;
-
-	//Name of the Library, used only for information
-	info->name = "TTLEvents";
-
-	//Version of the library, used only for information
-	info->libVersion = 1;
+	info->name = "TTL Event Generator"; // <---- update
+	info->libVersion = "0.1.0"; // <---- update
 	info->numPlugins = NUM_PLUGINS;
 }
 
@@ -57,41 +54,17 @@ extern "C" EXPORT int getPluginInfo(int index, Plugin::PluginInfo* info)
 		//one case per plugin. This example is for a processor which connects directly to the signal chain
 	case 0:
 		//Type of plugin. See "Source/Processors/PluginManager/OpenEphysPlugin.h" for complete info about the different type structures
-		info->type = PluginType::PLUGIN_TYPE_PROCESSOR;
+		info->type = Plugin::Type::PROCESSOR;
 
 		//Processor name
-		info->processor.name = "TTL Events"; //Processor name shown in the GUI
+		info->processor.name = "TTL Event Generator"; //Processor name shown in the GUI
 
-		//Type of processor. Can be FilterProcessor, SourceProcessor, SinkProcessor or UtilityProcessor. Specifies where on the processor list will appear
-		info->processor.type = ProcessorType::FilterProcessor;
+		//Type of processor. Can be FILTER, SOURCE, SINK or UTILITY. Specifies where on the processor list will appear
+		info->processor.type = Processor::Type::FILTER;
 
 		//Class factory pointer. Replace "ProcessorPluginSpace::ProcessorPlugin" with the namespace and class name.
 		info->processor.creator = &(Plugin::createProcessor<TTLEventGenerator>);
 		break;
-		/**
-		Examples for other plugin types
-
-		For a RecordEngine, which provides formats for recording data
-		case x:
-		info->type = Plugin::PLUGIN_TYPE_RECORD_ENGINE;
-		info->recordEngine.name = "Record Engine Name";
-		info->recordEngine.creator = &(Plugin::createRecordEngine<RecordEngineClassName>);
-		break;
-
-		For a DataThread, which allows to use the existing SourceNode to connect to an asynchronous data source, such as acquisition hardware
-		case x:
-		info->type = Plugin::PLUGIN_TYPE_DATA_THREAD;
-		info->dataThread.name = "Source name"; //Name that will appear on the processor list
-		info->dataThread.creator = &createDataThread<DataThreadClassName>;
-
-		For a FileSource, which allows importing data formats into the FileReader
-		case x:
-		info->type = Plugin::PLUGIN_TYPE_FILE_SOURCE;
-		info->fileSource.name = "File Source Name";
-		info->fileSource.extensions = "xxx;xxx;xxx"; //Semicolon separated list of supported extensions. Eg: "txt;dat;info;kwd"
-		info->fileSource.creator = &(Plugin::createFileSource<FileSourceClassName>);
-		**/
-
 	default:
 		return -1;
 		break;
@@ -99,7 +72,7 @@ extern "C" EXPORT int getPluginInfo(int index, Plugin::PluginInfo* info)
 	return 0;
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 BOOL WINAPI DllMain(IN HINSTANCE hDllHandle,
 	IN DWORD     nReason,
 	IN LPVOID    Reserved)

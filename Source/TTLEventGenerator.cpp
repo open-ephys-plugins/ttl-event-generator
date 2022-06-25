@@ -18,17 +18,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TTLEventGenerator.h"
 #include "TTLEventGeneratorEditor.h"
 
-//Change all names for the relevant ones, including "Processor Name"
 TTLEventGenerator::TTLEventGenerator() : GenericProcessor("TTL Event Generator")
 {
-	setProcessorType (PROCESSOR_TYPE_FILTER);
-
    shouldTriggerEvent = false;
    eventWasTriggered = false;
    triggeredEventCounter = 0;
 
    eventIntervalMs = 50.0f;
-   outputBit = 0;
+   outputLine = 0;
+
+   // Parameter for manually generating events
+   addStringParameter(Parameter::GLOBAL_SCOPE, "manual_trigger", "Manually trigger TTL events", String());
+
+   // Event frequency
+   addFloatParameter(Parameter::GLOBAL_SCOPE, "frequency", "Generate events at regaular intervals", 50.0f, 5.0f, 5000.0f, 5.0f);
+
+   StringArray outputs;
+   for(int i = 1; i <= 8; i++)
+      outputs.add(String(i));
+
+   // Event output line
+   addCategoricalParameter(Parameter::GLOBAL_SCOPE, "out", "Event output line", outputs, 0);
 }
 
 
@@ -40,133 +50,95 @@ TTLEventGenerator::~TTLEventGenerator()
 
 AudioProcessorEditor* TTLEventGenerator::createEditor()
 {
-	editor = new TTLEventGeneratorEditor(this, true);
-    return editor;
+	editor = std::make_unique<TTLEventGeneratorEditor>(this);
+   return editor.get();
 }
 
 
-void TTLEventGenerator::createEventChannels()
+void TTLEventGenerator::updateSettings()
 {
-
-   sampleRate = (int) getSampleRate(0);
-
-   const DataChannel* inputChannel = getDataChannel(0);
-
-   if (!inputChannel) // no input channels to this plugin
-   {
-         eventChannel = new EventChannel(EventChannel::TTL, // channel type
-                                          8, // number of sub-channels
-                                          1, // data packet size
-                                          sampleRate, // sampleRate
-                                          this); // source processor
-   } else {
-      eventChannel = new EventChannel(EventChannel::TTL, // channel type
-                                          8, // number of sub-channels
-                                          1, // data packet size
-                                          inputChannel, // pointer to input channel
-                                          this); // source processor
-   }
-
-   eventChannelArray.add(eventChannel); // eventChannelArray is an OwnedArray, which will
-                                        // delete the eventChannel object each time
-                                        // update() is called
-
+   // create and add a default TTL channel to the first data stream
+   addTTLChannel("TTL Event Generator Output");
 }
 
 
-bool TTLEventGenerator::enable()
+bool TTLEventGenerator::startAcquisition()
 {
    counter = 0;
    state = false;
 
-   return isEnabled;
+   return true;
 }
 
 
-void TTLEventGenerator::setParameter(int ID, float value)
+void TTLEventGenerator::parameterValueChanged(Parameter* param)
 {
-   if (ID == 0)
-   {
+   if (param->getName().equalsIgnoreCase("manual_trigger"))
+   {   
       shouldTriggerEvent = true;
-   } else if (ID == 1)
+   }
+   else if(param->getName().equalsIgnoreCase("frequency"))
    {
-      eventIntervalMs = value;
-   } else if (ID == 2)
+      eventIntervalMs = (float)param->getValue();
+   }
+   else if(param->getName().equalsIgnoreCase("out"))
    {
-      outputBit = int(value);
+      outputLine = (int)param->getValue() - 1;
    }
 }
 
 
 void TTLEventGenerator::process(AudioSampleBuffer& buffer)
 {
-	int totalSamples = getNumSamples(0);
-
-   int eventIntervalInSamples = (int) sampleRate * eventIntervalMs / 2 / 1000;
-
-   if (shouldTriggerEvent)
+	// loop through the streams
+   for (auto stream : getDataStreams())
    {
-
-      // add an event at the first sample.
-      uint8 ttlData = true << outputBit;
-
-      TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
-                                                   getTimestamp(0),
-                                                   &ttlData,
-                                                   sizeof(uint8),
-                                                   outputBit);
-
-      addEvent(eventChannel, event, 0);
-
-      shouldTriggerEvent = false;
-      eventWasTriggered = true;
-      triggeredEventCounter = 0;
-   }
-
-   for (int i = 0; i < totalSamples; i++)
-   {
-      counter++;
-
-      if (eventWasTriggered)
-         triggeredEventCounter++;
-
-      if (triggeredEventCounter == eventIntervalInSamples)
+      // Only generate on/off event for the first data stream
+      if(stream == getDataStreams()[0])
       {
-         uint8 ttlData = 0;
+         int totalSamples = getNumSamplesInBlock(stream->getStreamId());
 
-         TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
-                                                      getTimestamp(0) + i,
-                                                      &ttlData,
-                                                      sizeof(uint8),
-                                                      outputBit);
+         int eventIntervalInSamples = (int) stream->getSampleRate() * eventIntervalMs / 2 / 1000;
 
-         addEvent(eventChannel, event, i);
+         if (shouldTriggerEvent)
+         {
 
-         eventWasTriggered = false;
-         triggeredEventCounter = 0;
+            // add an ON event at the first sample.
+            setTTLState(0, outputLine, true);
+
+            shouldTriggerEvent = false;
+            eventWasTriggered = true;
+            triggeredEventCounter = 0;
+         }
+
+         for (int i = 0; i < totalSamples; i++)
+         {
+            counter++;
+
+            if (eventWasTriggered)
+               triggeredEventCounter++;
+
+            if (triggeredEventCounter == eventIntervalInSamples)
+            {
+               setTTLState(i, outputLine, false);
+
+               eventWasTriggered = false;
+               triggeredEventCounter = 0;
+            }
+            
+            if (counter == eventIntervalInSamples)
+            {
+
+               state = !state;
+               setTTLState(i, outputLine, state);
+               counter = 0;
+
+            }
+
+            if (counter > eventIntervalInSamples)
+               counter = 0;
+         }
       }
-      
-      if (counter == eventIntervalInSamples)
-      {
-
-         state = !state;
-
-         uint8 ttlData = state << outputBit;
-
-         TTLEventPtr event = TTLEvent::createTTLEvent(eventChannel,
-                                                      getTimestamp(0) + i,
-                                                      &ttlData,
-                                                      sizeof(uint8),
-                                                      outputBit);
-
-         addEvent(eventChannel, event, i);
-
-         counter = 0;
-
-      }
-
-      if (counter > eventIntervalInSamples)
-         counter = 0;
    }
 	 
 }

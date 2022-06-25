@@ -1,7 +1,7 @@
 /*
 ------------------------------------------------------------------
 This file is part of the Open Ephys GUI
-Copyright (C) 2021 Open Ephys
+Copyright (C) 2022 Open Ephys
 ------------------------------------------------------------------
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,44 +15,50 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TTLEventGenerator_EDITOR_H_DEFINED
-#define TTLEventGenerator_EDITOR_H_DEFINED
+#ifndef TTLEVENTGENERATOREDITOR_H_DEFINED
+#define TTLEVENTGENERATOREDITOR_H_DEFINED
 
 #include <EditorHeaders.h>
 #include "TTLEventGenerator.h"
 
-class TTLEventGenerator;
-
-class TTLEventGeneratorEditor : public GenericEditor,
-								public ComboBox::Listener
+class ManualTriggerButton : public ParameterEditor,
+    public Button::Listener
 {
 public:
 
-	TTLEventGeneratorEditor(TTLEventGenerator* parentNode, bool useDefaultParameterEditors);
-	~TTLEventGeneratorEditor();
+    /** Constructor */
+    ManualTriggerButton(Parameter* param);
 
-	void updateSettings() override;
+    /** Destructor*/
+    virtual ~ManualTriggerButton() { }
 
-	void buttonEvent(Button* button) override;
+    /** Respond to mute button clicks*/
+    void buttonClicked(Button* label) override;
 
-	void sliderEvent(Slider* slider) override;
+	/** Update view of the parameter edtiro component*/
+	void updateView() {};
 
-    void comboBoxChanged(ComboBox* comboBox) override;
+    /** Sets component layout*/
+    void resized() override;
+
+private:
+    std::unique_ptr<UtilityButton> triggerButton;
+};
+
+class TTLEventGeneratorEditor : public GenericEditor
+{
+public:
+
+	/** Constructor */
+	TTLEventGeneratorEditor(GenericProcessor* parentNode);
+
+	/** Destructor */
+	~TTLEventGeneratorEditor() { }
 
 private:
 
-	TTLEventGenerator* processor;
-
-	ScopedPointer<UtilityButton> manualTrigger;
-
-	ScopedPointer<Slider> eventFrequency;
-	ScopedPointer<Label> frequencyLabel;
-
-	ScopedPointer<ComboBox> outputBitSelector;
-	ScopedPointer<Label> outputLabel;
-
+	/** Generates an assertion if this class leaks */
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TTLEventGeneratorEditor);
-
 };
 
-#endif // TTLEventGenerator_EDITOR_H
+#endif // TTLEVENTGENERATOREDITOR_H_DEFINED
