@@ -18,27 +18,36 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "TTLEventGenerator.h"
 #include "TTLEventGeneratorEditor.h"
 
-TTLEventGenerator::TTLEventGenerator() : GenericProcessor("TTL Event Generator")
+TTLEventGenerator::TTLEventGenerator() : 
+    GenericProcessor("TTL Event Generator")
 {
-   shouldTriggerEvent = false;
-   eventWasTriggered = false;
-   triggeredEventCounter = 0;
-
-   eventIntervalMs = 50.0f;
-   outputLine = 0;
 
    // Parameter for manually generating events
-   addStringParameter(Parameter::GLOBAL_SCOPE, "manual_trigger", "Manually trigger TTL events", String());
+   addStringParameter(Parameter::GLOBAL_SCOPE, // parameter scope
+                      "manual_trigger",        // parameter name
+                      "Used to notify processor of manually triggered TTL events",  // parameter description
+                      String());               // default value
 
    // Event frequency
-   addFloatParameter(Parameter::GLOBAL_SCOPE, "frequency", "Generate events at regaular intervals", 50.0f, 5.0f, 5000.0f, 5.0f);
+   addFloatParameter(Parameter::GLOBAL_SCOPE,  // parameter scope
+                     "interval",              // parameter name
+                     "Interval (in ms) for automated event generation (0 ms = off)",  // parameter description
+                     1000.0f,                  // default value
+                     0.0f,                     // minimum value
+                     5000.0f,                  // maximum value
+                     50.0f);                   // step size
 
+   // Array of selectable TTL lines
    StringArray outputs;
    for(int i = 1; i <= 8; i++)
       outputs.add(String(i));
 
    // Event output line
-   addCategoricalParameter(Parameter::GLOBAL_SCOPE, "out", "Event output line", outputs, 0);
+   addCategoricalParameter(Parameter::GLOBAL_SCOPE, // parameter scope
+                           "ttl_line",              // parameter name
+                           "Event output line",     // parameter description
+                            outputs,                // available values
+                            0);                     // index of default value
 }
 
 
@@ -50,22 +59,36 @@ TTLEventGenerator::~TTLEventGenerator()
 
 AudioProcessorEditor* TTLEventGenerator::createEditor()
 {
-	editor = std::make_unique<TTLEventGeneratorEditor>(this);
+   editor = std::make_unique<TTLEventGeneratorEditor>(this);
    return editor.get();
 }
 
 
 void TTLEventGenerator::updateSettings()
 {
-   // create and add a default TTL channel to the first data stream
-   addTTLChannel("TTL Event Generator Output");
+   // create and add a TTL channel to the first data stream
+    EventChannel::Settings settings{
+             EventChannel::Type::TTL,
+             "TTL Event Generator Output",
+             "Default TTL event channel",
+             "ttl.events",
+             dataStreams[0]
+    };
+
+    ttlChannel = new EventChannel(settings);
+    eventChannels.add(ttlChannel); // this pointer is now owned by the eventChannels array
+    ttlChannel->addProcessor(processorInfo.get()); // make sure the channel knows about this processor
+    
+    outputLine = (int)getParameter("ttl_line")->getValue();
+
 }
 
 
 bool TTLEventGenerator::startAcquisition()
 {
-   counter = 0;
-   state = false;
+
+   counter = 0; // reset counter
+   state = false; // reset line state
 
    return true;
 }
@@ -76,14 +99,15 @@ void TTLEventGenerator::parameterValueChanged(Parameter* param)
    if (param->getName().equalsIgnoreCase("manual_trigger"))
    {   
       shouldTriggerEvent = true;
+      LOGD("Event was manually triggered"); // log message
    }
-   else if(param->getName().equalsIgnoreCase("frequency"))
+   else if(param->getName().equalsIgnoreCase("interval"))
    {
       eventIntervalMs = (float)param->getValue();
    }
-   else if(param->getName().equalsIgnoreCase("out"))
+   else if(param->getName().equalsIgnoreCase("ttl_line"))
    {
-      outputLine = (int)param->getValue() - 1;
+      outputLine = (int)param->getValue();
    }
 }
 
@@ -96,15 +120,26 @@ void TTLEventGenerator::process(AudioSampleBuffer& buffer)
       // Only generate on/off event for the first data stream
       if(stream == getDataStreams()[0])
       {
-         int totalSamples = getNumSamplesInBlock(stream->getStreamId());
 
-         int eventIntervalInSamples = (int) stream->getSampleRate() * eventIntervalMs / 2 / 1000;
+         int totalSamples = getNumSamplesInBlock(stream->getStreamId());
+         uint64 startSampleForBlock = getFirstSampleNumberForBlock(stream->getStreamId());
+
+         int eventIntervalInSamples;
+
+         if (eventIntervalMs > 0)
+           eventIntervalInSamples = (int) stream->getSampleRate() * eventIntervalMs / 2 / 1000;
+         else
+            eventIntervalInSamples = (int)stream->getSampleRate() * 100 / 2 / 1000;
 
          if (shouldTriggerEvent)
          {
 
             // add an ON event at the first sample.
-            setTTLState(0, outputLine, true);
+             TTLEventPtr eventPtr = TTLEvent::createTTLEvent(ttlChannel, 
+                 startSampleForBlock,
+                 outputLine, true);
+
+            addEvent(eventPtr, 0);
 
             shouldTriggerEvent = false;
             eventWasTriggered = true;
@@ -120,17 +155,29 @@ void TTLEventGenerator::process(AudioSampleBuffer& buffer)
 
             if (triggeredEventCounter == eventIntervalInSamples)
             {
-               setTTLState(i, outputLine, false);
+                // add off event at the correct offset
+                TTLEventPtr eventPtr = TTLEvent::createTTLEvent(ttlChannel,
+                    startSampleForBlock + i,
+                    outputLine, false);
+
+               addEvent(eventPtr, i);
 
                eventWasTriggered = false;
                triggeredEventCounter = 0;
             }
             
-            if (counter == eventIntervalInSamples)
+            if (counter == eventIntervalInSamples && eventIntervalMs > 0)
             {
 
                state = !state;
-               setTTLState(i, outputLine, state);
+
+               // add on or off event at the correct offset
+               TTLEventPtr eventPtr = TTLEvent::createTTLEvent(ttlChannel,
+                   startSampleForBlock + i,
+                   outputLine, state);
+
+               addEvent(eventPtr, i);
+               
                counter = 0;
 
             }

@@ -38,15 +38,18 @@ public:
     void parameterValueChanged(Parameter* param) override;
 
 private:
-	int counter; // counts the total number of incoming samples
-	bool state; // holds the channel state (on or off)
 
-	bool shouldTriggerEvent;
-	bool eventWasTriggered;
-   	int triggeredEventCounter;
+	int counter = 0; // counts the total number of incoming samples
+	bool state = false; // holds the state of the current TTL line (on or off)
+
+	bool shouldTriggerEvent = false; // true if an event should be manually triggered
+	bool eventWasTriggered = false; // true if an event was manually triggered
+   	int triggeredEventCounter = 0; // counter for manually triggered events
 	   
-	float eventIntervalMs;
-	int outputLine;
+	float eventIntervalMs = 1000.0f; // time between events
+	int outputLine = 0; // TTL output line
+
+	EventChannel* ttlChannel; // local pointer to TTL output channel
 
 };
 
