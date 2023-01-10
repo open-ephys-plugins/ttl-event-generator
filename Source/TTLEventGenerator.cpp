@@ -112,7 +112,7 @@ void TTLEventGenerator::parameterValueChanged(Parameter* param)
 }
 
 
-void TTLEventGenerator::process(AudioSampleBuffer& buffer)
+void TTLEventGenerator::process(AudioBuffer<float>& buffer)
 {
 	// loop through the streams
    for (auto stream : getDataStreams())

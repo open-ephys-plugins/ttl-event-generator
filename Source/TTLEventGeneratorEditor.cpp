@@ -51,8 +51,8 @@ TTLEventGeneratorEditor::TTLEventGeneratorEditor(GenericProcessor* parentNode)
     addCustomParameterEditor(new ManualTriggerButton(manualTrigger), 60, 95);
 
 	// event frequency slider
-	addSliderParameterEditor("interval", 100, 25);
+	addSliderParameterEditor("interval", 100, 25); // parameter name, x pos, y pos
 
 	// event output line
-	addComboBoxParameterEditor("ttl_line", 10, 25);
+	addComboBoxParameterEditor("ttl_line", 10, 25); // parameter name, x pos, y pos
 }

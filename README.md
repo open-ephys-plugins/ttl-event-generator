@@ -1,6 +1,6 @@
-# TTL Event GEnerator
+# TTL Event Generator
 
-![TTL Event Generator editorc](https://open-ephys.github.io/gui-docs/_images/visualizerplugin-06.png)
+![TTL Event Generator editor](https://open-ephys.github.io/gui-docs/_images/makeyourownplugin-05.png)
 
 This repository contains the final code for the [How to Make Your Own Plugin Tutorial](https://open-ephys.github.io/gui-docs/Tutorials/How-To-Make-Your-Own-Plugin.html) on the Open Ephys GUI documentation site.
 
